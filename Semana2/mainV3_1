@@ -1,0 +1,75 @@
+/*
+* Descripcion: detectar pulsador por flanco, en este caso al soltar el pulsador
+*              usando interrupción
+* Autor: Antonny Geray
+* Empresa: IES JAROSO
+* Fecha creación: 21/10/2025
+* Fecha de actualización:
+*/
+
+
+//Librerias necesarias para hacer funcionar el programa
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/gpio.h"
+#include "esp_timer.h"
+#include "esp_log.h"
+
+#define PINPULSADOR1 36
+#define MASKPINPUL1 1ULL << PINPULSADOR1
+
+#define PINLED1 32
+#define MASKPINLED1 1ULL << PINLED1
+
+static const char* TAG = "Ejercicio2";
+
+void app_main(void)
+{
+
+    //configuración del pulsador pin16
+    gpio_config_t configPinPul1 = {
+        .pin_bit_mask = MASKPINPUL1,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_POSEDGE
+    };
+
+    gpio_config(&configPinPul1);
+
+    //configuración del led pin32
+    gpio_config_t configLed1 = {
+        .pin_bit_mask = MASKPINLED1,
+        .mode = GPIO_MODE_OUTPUT
+        .pull_up_en = GPIO_PULLUP_DISABLE
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&configLed1);
+
+gpio_set_level(PINLED1, 0);
+int estadoLed1 = 0
+while(1)
+{
+    if (gpio_get_level(PINPULSADOR1) == 0)
+    (
+        vTaskDelay(pdMS_TO_TICKS(150));
+        if (gpio_get_level(PINPULSADOR1) == 1)
+        (
+            if (estadoLed1 == 0)
+            {
+                  estadoLed1 = 1;
+                  gpio_set_level(PINLED1, 1);
+                  ESP_LOGI(TAG, "Led encendido");
+            }
+            else
+            {
+                  estadoLed1 = 0;
+                  gpio_set_level(PINLED1, 0);
+                  ESP_LOGI(TAG, "led apagado");
+            }
+            
+        )
+        vTaskDelay(10);
+    )
+}
