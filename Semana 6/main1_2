@@ -119,10 +119,10 @@ void tareaSensorAngulo( void * parametro)
     {
         adc_oneshot_read(h_cad1, CHANNELPOT1, &valorCAD);
         if(valorCAD > 50 && valorCAD < 450)
-        {
+            {
             angulo = -22.5 + (0.45 * valorCAD);
 
-            if (angulo > 0 && angulo < 45)
+            /*if (angulo > 0 && angulo < 45)
             (
                 estadoFenologico = 1;
             )
@@ -139,10 +139,23 @@ void tareaSensorAngulo( void * parametro)
                 estadoFenologico = 4;
             )
             else
-            (
+            
                 estadoFenologico = 5;
                 //enviar alarma 
-            )
+            }*/
+            errorMenor = 999.9;
+            for (int i = 0; i < 4; i++)
+            {
+                error = fabs(angulo - angulosFenologicos[i]);
+
+                if(error < errorMenor)
+                {
+                    errorMenor = error;
+                    estadoFenologico = i + 1;
+                }
+            }
+
+
             if (estadoFenologico < 5)
             {
                 //enviar dato estado a colaSensorActuador
@@ -208,23 +221,45 @@ void tareaActuadorBomba( void * params)
     int saltoDut = pow(2,RESPWM) / 4;
     int rangoMaxPwm = pow(2,RESPWM);
     int estado = 0;
-
+    int potencia [4] = {10 , 25, 70, 50};
+    datoenvioMonitor datoMonitor = {
+        .id = 2;
+        .valorF = 0.0,
+        .valorI = .0
+    }
     while(1)
     {
-        //ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, dut);
-        //ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
-
         xQueueReceive(h_colaSensorBomba, &estado, portMAX_DELAY);
+        dut = ((potencia[estado - 1])/100)*rangoMaxPwm;
+        ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, dut);
+        ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+        datoMonitor.valorF = potencia[estado-1];
+        //take del semaforo del Monitor
+        xSemaphoreTake( h_semaforoMonitor, portMAX_DELAY);
+
+        xQueueSend(h_colaMonitor, &datoMonitor, 0);
+        
         ESP_LOGI(TAG, "Tarea Actuador valor estado: %d", estado);
+
+
     }
 }
 void tareaMonitor( void * params)
 {
     xSemaphoreGive( h_semaforoMonitor);
+    datoEnvioMonitor datoRecibido;
     while(1)
     {
-
-        
-        xSemaphoreGive( h_semaforoMonitor);
+        xQueueReceive(h_colaMonitor, &datoRecibido, portMax_DELAY);
+        if (datoRecibido.id == 1)
+        {
+            ESP_LOGI(TAG, "El estado Fenológico de la planta es: %d", datoRecibido.valorI);
+        }
+        else
+        {
+            ESP_LOGI(TAG, "La potencia de la bomba es: %f", datoRecibido.valorF);
+        }
+        vTaskDelay(pdMS_TO_TICKS(10000));
+        //xSemaphoreGive( h_semaforoMonitor);
     }
 }
